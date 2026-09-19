@@ -140,7 +140,7 @@ modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
 
 #### 依赖环境
 
-适配版本 **llama.cpp b10621**。从 [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases) 下载预编译二进制，将 DLL 放入 `qwen3_tts_gguf/bin/`：
+适配版本 **llama.cpp b10621**。从 [llama.cpp Releases](https://github.com/ggml-org/llama.cpp/releases) 下载预编译二进制，将 DLL 放入 `qwen3_tts_gguf/inference/bin/`：
 
 | 平台 | 下载文件 |
 |------|----------|
