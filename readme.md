@@ -155,7 +155,7 @@ modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
 uv sync --extra dml
 ```
 
-N 卡可换 `--extra gpu`；跑导出脚本再加 `--extra export`。不用 uv 则 `pip install -r requirements.txt`。
+N 卡可换 `--extra cuda`；跑导出脚本再加 `--extra export`。不用 uv 则 `pip install -r requirements.txt`。
 
 #### 配置路径
 

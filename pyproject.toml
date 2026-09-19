@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.14"
 dependencies = [
+    "fastapi>=0.141.1",
     "gguf>=0.19.0",
     "numpy>=2.5.2",
     "scipy>=1.18.1",
@@ -15,6 +16,7 @@ dependencies = [
     "soundfile>=0.14.0",
     "tokenizers>=0.22",
     "ttkbootstrap>=2.2.2",
+    "uvicorn>=0.53.0",
     "windnd>=1.0.7",
 ]
 

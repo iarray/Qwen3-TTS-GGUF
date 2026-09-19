@@ -155,6 +155,7 @@ class TTSResult:
     # 产出附件（可选）
     audio: Optional[np.ndarray] = None                 # 音频波形，PCM float32
     stats: Optional[Timing] = None                     # 性能统计
+    sample_rate: int = SAMPLE_RATE
 
     # --- 工厂方法 ---
 
