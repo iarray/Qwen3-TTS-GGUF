@@ -77,7 +77,7 @@ async def voice_clone(
             )
 
             result = stream.clone(text, config=config)
-            stream.join()  # 等待合成完成
+            #stream.join()  # 等待合成完成
 
             # 读取音频数据到内存buffer
             wav_np, sr = result.audio, result.sample_rate

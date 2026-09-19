@@ -205,6 +205,22 @@ python 34-Quantize-Predictor-GGUF.py    # 量化为 q8_0，这是推理引擎默
 python 52-GUI.py
 ```
 
+### WebAPI 模式
+默认端口9880
+
+```
+python .\ServerApi.py --model-dir ".\model-base" --port 9880
+
+```
+
+uv运行
+
+```
+uv run python .\ServerApi.py --model-dir ".\model-base" --port 9880
+
+```
+
+
 图形界面：模型载入（LLM 设备 / ONNX 组件可选）、声音克隆 / 音色 / 设计、批量任务落盘 wav+json、模型瘦身工具。
 
 ### 脚本模式
