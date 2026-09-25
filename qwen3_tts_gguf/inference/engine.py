@@ -17,7 +17,23 @@ class TTSEngine:
     """
     Qwen3-TTS 引擎：资源池与 Stream 工厂。
     """
-    def __init__(self, model_dir="model", onnx_provider="CUDA", llm_use_gpu=True, chunk_size=12, verbose=True, subprocess_decoder=True, load_llm=True):
+    def __init__(self, model_dir="model", onnx_provider="CUDA", llm_use_gpu=True, chunk_size=12, verbose=True, subprocess_decoder=True, load_llm=True,
+                 predictor_use_gpu: Optional[bool] = None):
+        """
+        Args:
+            predictor_use_gpu: Predictor (工匠模型) 是否放 GPU。
+                None (默认) = 跟随 llm_use_gpu，保持原有行为。
+                False       = Predictor 放 CPU，Talker 仍在 GPU。
+
+        为什么需要这个开关：
+            Predictor 每帧要做 16 次串行 llama_decode（1 次 prefill + 15 步自回归），
+            而每次调用在 Vulkan 上都有约 9.6 ms 的固定开销（与 batch 内 token 数几乎无关：
+            1 token = 9.70 ms，512 token = 64.39 ms）。单路时每帧就是 16 × 9.6 ≈ 155 ms，
+            而一帧音频只有 80 ms —— 单路 RTF 因此被钉在 ~1.9。
+            实测把 Predictor 挪到 CPU 后每次调用降到 ~4.6 ms，单路端到端 RTF 由 2.14 降到 1.15。
+            （见 58-Probe-Predictor-Backend.py / 59-Test-ServerApi-Flow.py）
+            批量场景（BatchRunner 多路 lockstep）能把这 9.6 ms 摊到多路上，放 GPU 更合适。
+        """
         import time
         import numpy as np
         from tokenizers import Tokenizer
@@ -76,7 +92,7 @@ class TTSEngine:
             # 4. 模型引擎初始化 (并行点 2: GGUF 在主进程加载，Decoder 在子进程同时初始化)
             if load_llm:
                 t_gguf = time.time()
-                self._init_llama_engines(llm_use_gpu)
+                self._init_llama_engines(llm_use_gpu, predictor_use_gpu)
                 if verbose: print(f"🧠 [Engine] GGUF 推理后端就绪 (耗时: {time.time()-t_gguf:.2f}s)")
             else:
                 self.talker_model = None
@@ -104,16 +120,29 @@ class TTSEngine:
     def __bool__(self):
         return self.ready
 
-    def _init_llama_engines(self, llm_use_gpu):
-        """初始化 GGUF 模型（仅加载模型，不创建 Context）"""
+    def _init_llama_engines(self, llm_use_gpu, predictor_use_gpu: Optional[bool] = None):
+        """初始化 GGUF 模型（仅加载模型，不创建 Context）
+
+        Talker 与 Predictor 可以分置不同设备：Talker 每帧只 1 次 decode，放 GPU；
+        Predictor 每帧 16 次串行 decode，单路场景放 CPU 反而更快（详见 __init__ 说明）。
+        """
         logger.info("[Engine] 正在加载 GGUF 模型...")
-        
+
+        if predictor_use_gpu is None:
+            predictor_use_gpu = bool(llm_use_gpu)
+
         try:
             # 使用新的 LlamaModel 类
             self.talker_model = llama.LlamaModel(self.paths["talker_gguf"], n_gpu_layers=-1, use_gpu=llm_use_gpu)
-            self.predictor_model = llama.LlamaModel(self.paths["predictor_gguf"], n_gpu_layers=-1, use_gpu=llm_use_gpu)
-            
-            logger.info("✅ [Engine] GGUF 模型加载完成。")
+            self.predictor_model = llama.LlamaModel(
+                self.paths["predictor_gguf"],
+                n_gpu_layers=(-1 if predictor_use_gpu else 0),
+                use_gpu=predictor_use_gpu,
+            )
+
+            logger.info(f"✅ [Engine] GGUF 模型加载完成 "
+                        f"(talker={'GPU' if llm_use_gpu else 'CPU'}, "
+                        f"predictor={'GPU' if predictor_use_gpu else 'CPU'})。")
         except Exception as e:
             logger.error(f"❌ 加载 GGUF 模型失败 (可能是显存不足/OOM): {e}")
             raise
